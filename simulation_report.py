@@ -1,0 +1,1 @@
+# LaTeX report generator (see full version above)

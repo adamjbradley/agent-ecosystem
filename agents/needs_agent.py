@@ -1,0 +1,1 @@
+# Parses entity preferences
