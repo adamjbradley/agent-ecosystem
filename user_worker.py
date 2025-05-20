@@ -1,9 +1,8 @@
 import os
 import time
 import random
-from agents.users_agent import create_user
-from agents.needs_agent import process_user_preferences
-from agents.users_agent import create_user, list_users
+
+from agents.users_agent import create_user, list_users, process_user_preferences
 
 # Interval and batch size
 USER_INTERVAL = 30  # seconds between batches

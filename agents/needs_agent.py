@@ -2,6 +2,8 @@ import os
 import redis
 import json
 from datetime import datetime, timedelta
+import random
+from agents.supplier_agent import get_current_products
 
 # Streams and sets for tracking need status
 SATISFIED_SET      = "needs:satisfied"
@@ -22,7 +24,7 @@ r = redis.Redis(
 )
 
 # Default TTL for needs (seconds)
-DEFAULT_NEED_TTL = 5
+DEFAULT_NEED_TTL = 120
 
 def process_user_preferences(user_id, prefs, ttl=DEFAULT_NEED_TTL):
     """
@@ -31,16 +33,49 @@ def process_user_preferences(user_id, prefs, ttl=DEFAULT_NEED_TTL):
     # Ensure the user actually exists
     if not r.sismember(USERS_SET, user_id):
         raise ValueError(f"Cannot create need: user '{user_id}' is not registered.")
-    
+        
     need = {
         "need_id": f"need_{user_id}_{int(datetime.utcnow().timestamp())}",
         "user_id": user_id,
         "preferences": prefs,
         "timestamp": datetime.utcnow().isoformat()
     }
+
+    # If no product_id specified, pick a random product to satisfy the need
+    if "product_id" not in prefs:
+        products = get_current_products()
+        if products:
+            prod = random.choice(products)
+            pid = prod.get("product_id")
+            prefs["product_id"] = pid
+            # Stamp the need with product_id and name
+            need["product_id"] = pid
+            need["product_name"] = prod.get("attributes", {}).get("name")
+        else:
+            # No products available yet
+            need["product_id"] = None
+            need["product_name"] = None
+
+    # Handle when a specific product_id was requested
+    if "product_id" in prefs:
+        pid = prefs["product_id"]
+        need["product_id"] = pid
+        # Pull the stored product record to grab its name
+        raw = r.get(f"product:{pid}")
+        if raw:
+            prod = json.loads(raw)
+            need["product_name"] = prod.get("attributes", {}).get("name")
+        else:
+            need["product_name"] = None
+
+    # Persist the need in Redis and publish to needs_stream
     key = f"need:{need['need_id']}"
     r.setex(key, ttl, json.dumps(need))
     r.publish("needs_stream", json.dumps(need))
+    # ─── Metrics ───────────────────────────────────────────
+    # count how many needs have ever been requested
+    r.incr("metrics:needs_requested")
+    
     return need
 
 

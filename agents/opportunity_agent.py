@@ -1,130 +1,164 @@
 import os
 import redis
 import json
-from datetime import datetime, timedelta
+import random
+from datetime import datetime
 
-# Read Redis connection info from env (set in docker-compose.yml)
+from agents.supplier_agent import get_current_products
+from provider_manager import list_providers
+
+
+from typing import Optional
+
+# Redis connection setup (reads from environment)
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
 
-PENDING_OFFERS_STREAM = "pending_offers_stream"
-
-r = redis.Redis(
-    host=REDIS_HOST,
-    port=REDIS_PORT,
-    db=0,
-    decode_responses=True
-)
-
-# Default Time-To-Live (TTL) for offers, in seconds
+# Default Time-To-Live (TTL) for active offers, in seconds
 DEFAULT_OFFER_TTL = 10
 
+# Mapping of merchant IDs to the categories they specialize in
+MERCHANT_CATEGORIES = {
+    "merchant_travel":      ["Travel", "Events"],
+    "merchant_electronics": ["Electronics", "Gadgets"],
+    "merchant_financial":   ["Financial Services"],
+    "merchant_clothing":    ["Clothing"],
+    "merchant_home":        ["Home"],
+    "merchant_books":       ["Books"],
+    "merchant_food":        ["Food"],
+    "merchant_health":      ["Health"],
+    "merchant_automotive":  ["Automotive"],
+    # merchants not listed here can offer any category
+}
 
-def generate_offer(agent_id, strategy, ttl=DEFAULT_OFFER_TTL):
+# Redis set key prefix for each merchant’s stock of supplier products
+MERCHANT_STOCK_PREFIX = "merchant_stock:"
+
+
+def generate_offer(agent_id:Optional[str], strategy: str="", ttl: int = DEFAULT_OFFER_TTL) -> Optional[dict]:
     """
-    Generate a new opportunity offer with TTL and publish to Redis
+    Generate a new active offer for a merchant by randomly choosing
+    from that merchant’s stocked supplier products, apply specialization
+    filters, persist with TTL, and publish to 'offers_stream'.
     """
+
+    if agent_id is None:
+        # grab all registered merchants
+        all_merchants = list_providers()
+        # filter to those who actually have stock
+        stocked = [m for m in all_merchants if list_stocked_products(m)]
+        if not stocked:
+            return None  # no one has stock right now
+        agent_id = random.choice(stocked)
+
+    # 1) Load this merchant’s stocked product IDs
+    stock_key   = f"{MERCHANT_STOCK_PREFIX}{agent_id}"
+    stocked_ids = r.smembers(stock_key)
+    if not stocked_ids:
+        return None  # merchant has no inventory
+
+    # 2) Fetch each stocked product record from Redis
+    products = []
+    for pid in stocked_ids:
+        raw = r.get(f"product:{pid}")
+        if raw:
+            products.append(json.loads(raw))
+    if not products:
+        return None  # no valid product data
+
+    # 3) Apply merchant specialization filter if defined
+    allowed = MERCHANT_CATEGORIES.get(agent_id)
+    if allowed:
+        products = [
+            p for p in products
+            if p.get("attributes", {}).get("category") in allowed
+        ]
+        if not products:
+            return None  # none match their category specialism
+
+    # 4) Choose one at random
+    product = random.choice(products)
+
+    # 5) Build a “flattened” offer payload
+    attrs = product.get("attributes", {})
+    offer_id = f"offer_{agent_id}_{int(datetime.utcnow().timestamp())}"
     offer = {
-        "offer_id": f"offer_{agent_id}_{int(datetime.utcnow().timestamp())}",
+        "offer_id":    offer_id,
         "provided_by": agent_id,
-        "strategy": strategy,
-        "product": {
-            "tags": ["eco-friendly", "fast-delivery"],
-            "price": 480,
-            "brand": "BrandX"
-        },
-        "timestamp": datetime.utcnow().isoformat()
+        "product_id":  product["product_id"],
+        "supplier_id": product.get("supplier_id"),
+        "category":    attrs.get("category"),
+        "tags":        attrs.get("tags", []),
+        "price":       attrs.get("price"),
+        "brand":       attrs.get("brand"),
+        "strategy":    strategy,
+        "timestamp":   datetime.utcnow().isoformat()
     }
-    key = f"offer:{offer['offer_id']}"
-    # Store with TTL so it auto-expires
+
+    # 6) Persist with TTL and publish
+    key = f"offer:{offer_id}"
     r.setex(key, ttl, json.dumps(offer))
-    # Publish new-offer event
     r.publish("offers_stream", json.dumps(offer))
     return offer
 
-def stage_offer(agent_id, strategy):
+
+def stage_offer(agent_id: str, strategy: str, ttl: int = DEFAULT_OFFER_TTL) -> dict | None:
     """
-    Create a new offer and publish it to the pending stream.
+    Stage and immediately activate a real offer for UI/approval.
+    Internally calls generate_offer so the result is fully formed.
+    Also persists a pending copy for audit.
     """
-    offer = {
-        "offer_id": f"offer_{agent_id}_{int(datetime.utcnow().timestamp())}",
-        "provided_by": agent_id,
-        "strategy": strategy,
-        "product": {
-            "tags": ["eco-friendly", "fast-delivery"],
-            "price": 480,
-            "brand": "BrandX"
-        },
-        "timestamp": datetime.utcnow().isoformat()
-    }
-    # Store it (optional TTL) so it can be audited
+    offer = generate_offer(agent_id, strategy, ttl)
+    if not offer:
+        return None
+
     r.set(f"pending_offer:{offer['offer_id']}", json.dumps(offer))
-    # Publish to pending_offers_stream
-    r.publish(PENDING_OFFERS_STREAM, json.dumps(offer))
+    r.publish("pending_offers_stream", json.dumps(offer))
     return offer
 
-def get_offer(offer_id):
-    """
-    Retrieve an offer by ID from Redis
-    """
+
+def get_offer(offer_id: str) -> dict | None:
     data = r.get(f"offer:{offer_id}")
     return json.loads(data) if data else None
 
 
-def get_current_offers():
-    """
-    List all non-expired offers stored in Redis
-    """
+def get_current_offers() -> list[dict]:
     offers = []
     for key in r.keys("offer:*"):
-        data = r.get(key)
-        if data:
-            offers.append(json.loads(data))
+        raw = r.get(key)
+        if raw:
+            offers.append(json.loads(raw))
     return offers
 
 
-def remove_offer(offer_id):
-    """
-    Remove an existing offer before its TTL expires and notify
-    """
+def remove_offer(offer_id: str) -> bool:
     key = f"offer:{offer_id}"
     if r.exists(key):
         r.delete(key)
-        # Notify removal event
         r.publish("offers_removed_stream", json.dumps({"offer_id": offer_id}))
         return True
     return False
 
 
-def adjust_offer_price(offer_id, new_price, ttl=DEFAULT_OFFER_TTL):
-    """
-    Adjust an existing offer's price as a counter-offer and republish
-    """
+def adjust_offer_price(offer_id: str, new_price: float, ttl: int = DEFAULT_OFFER_TTL) -> dict | None:
     key = f"offer:{offer_id}"
     raw = r.get(key)
     if not raw:
         return None
     offer = json.loads(raw)
-    offer["product"]["price"] = new_price
+    offer["price"]     = new_price
     offer["timestamp"] = datetime.utcnow().isoformat()
-    # Store the updated offer with fresh TTL
     r.setex(key, ttl, json.dumps(offer))
-    # Republish the adjusted offer
     r.publish("offers_stream", json.dumps(offer))
     return offer
 
 
-def negotiate_price(need, offer):
-    """
-    Negotiate price based on the agent's strategy and user need
-    Returns negotiation status without side-effects.
-    """
-    price = offer["product"]["price"]
-    max_price = need.get("price_max") or need.get("preferences", {}).get("price_max", 0)
-    strategy = offer.get("strategy", "neutral")
-    agent_id = offer.get("provided_by")
+def negotiate_price(need: dict, offer: dict) -> dict:
+    price     = offer.get("price", 0)
+    max_price = need.get("preferences", {}).get("price_max", 0)
+    strategy  = offer.get("strategy", "neutral")
 
-    # Strategy-driven negotiation
     if strategy == "match_score":
         if price <= max_price:
             status = "accepted"
@@ -145,10 +179,38 @@ def negotiate_price(need, offer):
         status = "accepted" if price <= max_price else "rejected"
 
     return {
-        "offered_price": price,
+        "offered_price":  price,
         "max_user_price": max_price,
-        "status": status,
-        "strategy": strategy,
-        "agent_id": agent_id
+        "status":         status,
+        "strategy":       strategy,
+        "agent_id":       offer.get("provided_by")
     }
 
+
+def stock_product(merchant_id: str, product_id: str) -> bool:
+    return r.sadd(f"{MERCHANT_STOCK_PREFIX}{merchant_id}", product_id) == 1
+
+
+def list_stocked_products(merchant_id: str) -> list[str]:
+    return list(r.smembers(f"{MERCHANT_STOCK_PREFIX}{merchant_id}"))
+
+
+def list_merchant_products(merchant_id: str) -> list[str]:
+    offers = get_current_offers()
+    products = {
+        o.get("product_id")
+        for o in offers
+        if o.get("provided_by") == merchant_id
+    }
+    return list(products)
+
+
+def list_all_merchants_products() -> dict[str, list[str]]:
+    offers = get_current_offers()
+    merchant_map: dict[str, set[str]] = {}
+    for o in offers:
+        m   = o.get("provided_by")
+        pid = o.get("product_id")
+        if m and pid:
+            merchant_map.setdefault(m, set()).add(pid)
+    return {m: list(pids) for m, pids in merchant_map.items()}

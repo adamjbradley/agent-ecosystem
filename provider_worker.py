@@ -6,7 +6,11 @@ import json
 import redis
 from provider_manager import register_provider, unregister_provider, list_providers
 from agents.opportunity_agent import generate_offer, stage_offer
+
 import random
+
+# Default negotiation strategy for providers
+STRATEGY = "aggregated_offers"
 
 # Redis connection
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
@@ -41,7 +45,7 @@ def run_provider_worker():
             to_register = [p for p in CANDIDATE_PROVIDERS if p not in existing]
             if to_register:
                 pid = to_register[0]
-                register_provider(pid, metadata={"category": "demo"})
+                register_provider(pid)
                 print(f"  • Registered provider {pid}")
             last_register = now
 
@@ -62,8 +66,11 @@ def run_provider_worker():
         # 3) For each currently registered provider, generate an offer
         providers = list_providers()
         for provider_id in providers:
-            offer = stage_offer(provider_id, strategy="aggregated_offers")
-            print(f"   ⏱ Staged offer {offer['offer_id']} from {provider_id}")
+            offer = stage_offer(provider_id, STRATEGY)
+            if offer is not None:
+                print(f"   ⏱ Staged offer {offer['offer_id']} from {provider_id}")
+            else:
+                print(f"   ⚠️ No offer staged for {provider_id}")
 
         # After staging offers for all providers…
         delay = random.uniform(MIN_OFFER_DELAY, MAX_OFFER_DELAY)
@@ -72,3 +79,4 @@ def run_provider_worker():
 
 if __name__ == "__main__":
     run_provider_worker()
+
