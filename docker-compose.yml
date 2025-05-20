@@ -12,6 +12,7 @@ services:
       streamlit run dashboard/streamlit_app.py
       --server.port 8501
       --server.address 0.0.0.0
+      --server.fileWatcherType none
     volumes:
       - .:/app
     ports:
@@ -73,3 +74,31 @@ services:
       - REDIS_PORT=6379
     depends_on:
       - redis
+
+  user_worker:
+    build: .
+    container_name: user-worker
+    command: python user_worker.py
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    command: [
+      "http",
+      "--url=https://default.internal",
+      "http://app:8501"
+    ]
+    environment:
+      NGROK_AUTHTOKEN: "7h9r3gqggN2GgxrHt9puc_7oDr6uCGh3XNHaSj9cBq6"      
+    container_name: ngrok-tunnel
+    depends_on:
+      - app
+    ports:
+      - 4040:4040

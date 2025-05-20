@@ -29,5 +29,19 @@ def get_object(prefix, obj_id):
     return json.loads(data) if data else None
 
 def list_objects(prefix):
+    """
+    Return all JSON‐decoded objects whose keys start with f"{prefix}:".
+    Automatically skips expired or missing entries.
+    """
     keys = r.keys(f"{prefix}:*")
-    return [json.loads(r.get(k)) for k in keys]
+    objects = []
+    for k in keys:
+        raw = r.get(k)
+        if raw is None:
+            continue  # skip expired/missing
+        try:
+            obj = json.loads(raw)
+        except json.JSONDecodeError:
+            continue  # or log a warning
+        objects.append(obj)
+    return objects

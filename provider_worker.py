@@ -5,7 +5,8 @@ import time
 import json
 import redis
 from provider_manager import register_provider, unregister_provider, list_providers
-from agents.opportunity_agent import generate_offer
+from agents.opportunity_agent import generate_offer, stage_offer
+import random
 
 # Redis connection
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
@@ -18,6 +19,11 @@ REGISTER_INTERVAL   = 10   # seconds between registering a new provider
 UNREGISTER_INTERVAL = 30   # seconds between removing one
 OFFER_INTERVAL      = 5    # seconds between offers per active provider
 OFFER_TTL           = 10   # seconds TTL for each offer
+OFFER_INTERVAL = 1  # seconds between staging new offers
+
+# After your existing imports and constants
+MIN_OFFER_DELAY = 0.5   # half‐second minimum
+MAX_OFFER_DELAY = 3.0   # three‐second maximum
 
 last_register   = time.time()
 last_unregister = time.time()
@@ -54,11 +60,15 @@ def run_provider_worker():
             last_unregister = now
 
         # 3) For each currently registered provider, generate an offer
-        for pid in list_providers():
-            offer = generate_offer(pid, "aggregated_offers", ttl=OFFER_TTL)
-            print(f"  • Offer {offer['offer_id']} from {pid}")
+        providers = list_providers()
+        for provider_id in providers:
+            offer = stage_offer(provider_id, strategy="aggregated_offers")
+            print(f"   ⏱ Staged offer {offer['offer_id']} from {provider_id}")
 
-        time.sleep(OFFER_INTERVAL)
+        # After staging offers for all providers…
+        delay = random.uniform(MIN_OFFER_DELAY, MAX_OFFER_DELAY)
+        print(f"⏱ Sleeping {delay:.2f}s before staging next batch")
+        time.sleep(delay)        
 
 if __name__ == "__main__":
     run_provider_worker()

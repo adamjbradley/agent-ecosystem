@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
+PENDING_OFFERS_STREAM = "pending_offers_stream"
+
 r = redis.Redis(
     host=REDIS_HOST,
     port=REDIS_PORT,
@@ -40,6 +42,26 @@ def generate_offer(agent_id, strategy, ttl=DEFAULT_OFFER_TTL):
     r.publish("offers_stream", json.dumps(offer))
     return offer
 
+def stage_offer(agent_id, strategy):
+    """
+    Create a new offer and publish it to the pending stream.
+    """
+    offer = {
+        "offer_id": f"offer_{agent_id}_{int(datetime.utcnow().timestamp())}",
+        "provided_by": agent_id,
+        "strategy": strategy,
+        "product": {
+            "tags": ["eco-friendly", "fast-delivery"],
+            "price": 480,
+            "brand": "BrandX"
+        },
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    # Store it (optional TTL) so it can be audited
+    r.set(f"pending_offer:{offer['offer_id']}", json.dumps(offer))
+    # Publish to pending_offers_stream
+    r.publish(PENDING_OFFERS_STREAM, json.dumps(offer))
+    return offer
 
 def get_offer(offer_id):
     """

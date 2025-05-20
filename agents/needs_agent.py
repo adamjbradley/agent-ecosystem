@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 SATISFIED_SET      = "needs:satisfied"
 UNSATISFIED_SET    = "needs:unsatisfied"
 UNSATISFIED_STREAM = "needs_unsatisfied_stream"
+# Redis set for tracking registered users
+USERS_SET          = "users:all"
 
 # Read Redis connection info from env (set in docker-compose.yml)
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
@@ -22,11 +24,14 @@ r = redis.Redis(
 # Default TTL for needs (seconds)
 DEFAULT_NEED_TTL = 5
 
-
 def process_user_preferences(user_id, prefs, ttl=DEFAULT_NEED_TTL):
     """
     Store a user need with TTL and publish to Redis
     """
+    # Ensure the user actually exists
+    if not r.sismember(USERS_SET, user_id):
+        raise ValueError(f"Cannot create need: user '{user_id}' is not registered.")
+    
     need = {
         "need_id": f"need_{user_id}_{int(datetime.utcnow().timestamp())}",
         "user_id": user_id,
