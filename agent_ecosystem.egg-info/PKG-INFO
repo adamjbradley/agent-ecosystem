@@ -1,0 +1,6 @@
+Metadata-Version: 2.1
+Name: agent_ecosystem
+Version: 0.1.0
+Requires-Dist: redis
+Requires-Dist: streamlit
+Requires-Dist: jinja2

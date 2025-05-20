@@ -1,1 +1,9 @@
-# GitHub CI workflow
+name: Export PDF
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Compile report
+      run: cd docs && pdflatex evolutionary_agents_combined.tex

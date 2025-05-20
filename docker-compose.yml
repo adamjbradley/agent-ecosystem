@@ -1,0 +1,75 @@
+services:
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+  app:
+    build: .
+    container_name: agent-app
+    command: >
+      streamlit run dashboard/streamlit_app.py
+      --server.port 8501
+      --server.address 0.0.0.0
+    volumes:
+      - .:/app
+    ports:
+      - "8501:8501"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+
+  need_worker:
+    build: .
+    container_name: need-worker
+    command: python need_worker.py
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+
+  offer_worker:
+    build: .
+    container_name: offer-worker
+    command: python offer_worker.py
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+
+  match_worker:
+    build: .
+    container_name: match-worker
+    command: python match_worker.py
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+
+  provider_worker:
+    build: .
+    container_name: provider-worker
+    command: python provider_worker.py
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis

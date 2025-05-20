@@ -1,1 +1,2 @@
-# One-line local launcher
+#!/bin/bash
+streamlit run dashboard/streamlit_app.py

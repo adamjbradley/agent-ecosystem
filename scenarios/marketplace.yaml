@@ -1,3 +1,11 @@
 entities:
-  - template: sme
-  - template: regulator
+  - id: user_001
+    template: user
+  - id: org_001
+    template: organization
+  - id: regulator
+    template: policy
+links:
+  - source: regulator
+    target: org_001
+    type: regulates

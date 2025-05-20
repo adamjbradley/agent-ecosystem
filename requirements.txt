@@ -1,0 +1,6 @@
+redis
+streamlit
+jinja2
+pydantic
+matplotlib
+networkx

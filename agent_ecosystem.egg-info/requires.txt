@@ -1,0 +1,3 @@
+redis
+streamlit
+jinja2
