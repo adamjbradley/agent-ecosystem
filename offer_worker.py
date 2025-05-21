@@ -18,7 +18,7 @@ DEFAULT_OFFER_TTL = 3600  # seconds before each offer auto-expires
 
 # List of merchant/provider IDs to generate offers for
 MERCHANT_IDS = ["merchant_1", "merchant_2", "merchant_3"]
-STRATEGY     = "aggregated_offers"
+STRATEGY     = "neutral"
 PENDING_OFFERS_STREAM = "pending_offers_stream"
 
 print("▶️ Offer worker started — aggregating offers from providers every "

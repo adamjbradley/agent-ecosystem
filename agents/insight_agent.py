@@ -39,6 +39,6 @@ def process_match(user_id, offer_id):
     # 2) Price check: only match if offer price <= user's max
     price     = offer.get("product", {}).get("price", 0)
     max_price = need.get("preferences", {}).get("price_max", 0)
-    score     = 1.0 if price <= max_price else 0.0
+    score     = 1.0 if price <= max_price else 0.5
 
     return {"score": score}

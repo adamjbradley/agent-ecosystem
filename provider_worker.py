@@ -10,7 +10,7 @@ from agents.opportunity_agent import generate_offer, stage_offer
 import random
 
 # Default negotiation strategy for providers
-STRATEGY = "aggregated_offers"
+STRATEGY = "neutral"
 
 # Redis connection
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")

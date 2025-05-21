@@ -125,20 +125,15 @@ st.sidebar.markdown("---")  # visual separator
 
 # Generate Manual Offer
 if st.sidebar.button("Generate Offer", key="btn_generate_offer"):
-    offer = generate_offer("merchant_1", "aggregated_offers")
+    offer = generate_offer("merchant_1", "neutral")
     if offer is not None:
         st.sidebar.success(f"Offer created: {offer['offer_id']}")
     else:
         st.sidebar.warning("No offer created: merchant has no stocked inventory")
 
-st.sidebar.markdown("---")  # visual separator
-
-if st.sidebar.button("Reset All Data", key="btn_reset_data"):
-    # Flush every key in Redis
-    r.flushdb()
-    # Clear the local event history
-    st.session_state["events"] = []
-    st.sidebar.success("All Redis data and event history have been reset.")
+# Manual Refresh for Events
+if st.sidebar.button("Refresh Events", key="btn_refresh"):
+    pass
 
 # Active Providers
 st.sidebar.subheader("Active Providers")
@@ -160,10 +155,14 @@ if users:
 else:
     st.sidebar.write("No users yet")
 
-# Manual Refresh for Events
-if st.sidebar.button("Refresh Events", key="btn_refresh"):
-    pass
+st.sidebar.markdown("---")  # visual separator
 
+if st.sidebar.button("Reset All Data", key="btn_reset_data"):
+    # Flush every key in Redis
+    r.flushdb()
+    # Clear the local event history
+    st.session_state["events"] = []
+    st.sidebar.success("All Redis data and event history have been reset.")
 
 st.sidebar.subheader("Active Products")
 products = get_current_products()

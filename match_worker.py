@@ -39,18 +39,24 @@ def run_match_worker(poll_interval: float = 1.0):
                 # 2) Negotiate
                 negotiation = negotiate_price(need, offer)
                 status = negotiation.get("status")
+
+                print(f"▶️ Negotiation status for {need_id}: {status} for {user_id}")
+
                 # 3) Counter-offer
                 if status == "counter-offer":
                     new_price = need.get("preferences", {}).get("price_max")
                     updated = adjust_offer_price(offer_id, new_price)
                     if updated:
                         offer = updated
+                        print(f"▶️ Offer updated {need_id}: {updated} for {user_id}")
+
                 # 4) Accept
                 need_removed = False
                 if status == "accepted":
                     if remove_need(need_id):
                         need_removed = True
                         r.incr("metrics:needs_met")
+                        print(f"▶️ Offer approve, need removed {need_id} for {user_id}")
 
                 # 5) Trace
                 trace = {
