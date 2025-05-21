@@ -31,6 +31,14 @@ def run_match_worker(poll_interval: float = 5.0):
             for need in needs:
                 user_id = need.get("user_id")
                 need_id = need.get("need_id")
+
+                # Tag‐based pre‐filter
+                need_tags  = set(need.get("preferences", {}).get("tags", []))
+                offer_tags = set(offer.get("product",  {}).get("tags", []))
+                if need_tags and not (need_tags & offer_tags):
+                    # skip non‐overlapping
+                    continue
+
                 # 1) Score match
                 match = process_match(user_id, offer_id)
                 score = match.get("score", 0)

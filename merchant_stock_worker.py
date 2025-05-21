@@ -53,14 +53,20 @@ def run_merchant_stock_worker():
             continue
 
         for merchant in list_providers():
+            stock_key = f"{MERCHANT_STOCK_PREFIX}{merchant}"
+            current_count = r.scard(stock_key)
+            if current_count >= 100:
+                print(f"   ⚠️ {merchant} already has {current_count} products (limit 100); skipping {prod_id}")
+                continue
+
             allowed = MERCHANT_CATEGORIES.get(merchant)
-            # If merchant is specialized, only stock matching category
             if allowed:
+                # only stock matching category
                 if category in allowed:
                     stock_product(merchant, prod_id)
                     print(f"   📦 Stocked {prod_id} into {merchant} (specialized)")
             else:
-                # Generic merchant: stock everything
+                # generic merchant: stock everything
                 stock_product(merchant, prod_id)
                 print(f"   📦 Stocked {prod_id} into {merchant} (generic)")
 
