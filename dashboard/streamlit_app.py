@@ -229,12 +229,16 @@ if active_needs:
     # Build display table
     rows = []
     for n in active_needs:
+
+        tags_list = n.get("preferences", {}).get("tags", [])
+        tags = ", ".join(tags_list) if tags_list else "–"
+        
         rows.append({
             "Need ID":      n.get("need_id",""),
             "User":         n.get("user_id",""),
             "Product ID":   n.get("product_id",""),
             "Product Name": n.get("product_name",""),
-            "Tags":         ", ".join(n.get("preferences",{}).get("tags",[])),
+            "Tags":         tags,
             "Max Price":    n.get("preferences",{}).get("price_max",""),
             "Timestamp":    n.get("timestamp","")
         })

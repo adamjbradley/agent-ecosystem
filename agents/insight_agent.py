@@ -1,7 +1,5 @@
 import redis, json, os
-from analytics.metrics import compute_trust
-from datetime import datetime
-from agents.needs_agent import get_need
+from agents.needs_agent import get_need, get_current_needs
 from agents.opportunity_agent import get_offer
 
 # Read Redis connection info from env (set in docker-compose.yml)
@@ -15,31 +13,28 @@ r = redis.Redis(
     decode_responses=True
 )
 
-def match_score(need, offer, user_profile=None):
-    base = 0.5
-    if 'eco-friendly' in offer['product']['tags']:
-        base += 0.2
-    if user_profile:
-        base += (user_profile.get('price_sensitivity', 0.5) - 0.5) * 0.1
-    # apply trust boost
-    trust = compute_trust([5,4,5])  # sample feedback
-    score = round(base + trust*0.01, 3)
-    return score
-
 def process_match(user_id, offer_id):
-    need = get_need(user_id)           # pulls preferences and tags
+    needs = get_current_needs()
+    need = next((n for n in needs if n.get("user_id") == user_id), None)
     if not need:
-        # No active need found; return zero score so no match
-        return {"score": 0.0}
-    
-    offer = get_offer(offer_id)        # pulls product with tags
-    
-    need_tags  = set(need.get("preferences", {}).get("tags", []))
-    offer_tags = set(offer.get("product", {}).get("tags", []))
-    if need_tags and not (need_tags & offer_tags):
-        # No common tags → zero score, skip negotiation
+        print(f"▶️ No active need for user {user_id}")
         return {"score": 0.0}
 
-    # Compute a base match score
-    score = match_score(need, offer)
+    offer = get_offer(offer_id)
+    if not offer:
+        print(f"▶️ Offer does not exist {offer_id}")
+        return {"score": 0.0}
+
+    # 1) Must be same product **name**
+    need_name  = need.get("product_name")
+    # Offers embed the product under "product": {..., "name": "..."}
+    offer_name = offer.get("product", {}).get("name") or offer.get("product_name")
+    if not need_name or need_name != offer_name:
+        return {"score": 0.0}
+
+    # 2) Price check: only match if offer price <= user's max
+    price     = offer.get("product", {}).get("price", 0)
+    max_price = need.get("preferences", {}).get("price_max", 0)
+    score     = 1.0 if price <= max_price else 0.0
+
     return {"score": score}

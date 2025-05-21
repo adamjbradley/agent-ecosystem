@@ -7,7 +7,6 @@ from datetime import datetime
 from agents.supplier_agent import get_current_products
 from provider_manager import list_providers
 
-
 from typing import Optional
 
 # Redis connection setup (reads from environment)
@@ -42,6 +41,10 @@ def generate_offer(agent_id:Optional[str], strategy: str="", ttl: int = DEFAULT_
     from that merchant’s stocked supplier products, apply specialization
     filters, persist with TTL, and publish to 'offers_stream'.
     """
+
+    # If no products have been created yet, skip generating offers
+    if not get_current_products():
+        return None
 
     if agent_id is None:
         # grab all registered merchants
@@ -87,6 +90,8 @@ def generate_offer(agent_id:Optional[str], strategy: str="", ttl: int = DEFAULT_
         "offer_id":    offer_id,
         "provided_by": agent_id,
         "product_id":  product["product_id"],
+        "product_name": product.get("attributes", {}).get("name"),
+        "product":     product.get("attributes", {}),
         "supplier_id": product.get("supplier_id"),
         "category":    attrs.get("category"),
         "tags":        attrs.get("tags", []),

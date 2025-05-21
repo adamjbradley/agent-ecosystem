@@ -3,7 +3,8 @@ import json
 import time
 import redis
 
-from db.redis_store import list_objects
+# removed list_objects
+from agents.needs_agent import get_current_needs
 from agents.insight_agent import process_match
 from agents.opportunity_agent import negotiate_price, adjust_offer_price, list_stocked_products
 from agents.needs_agent import remove_need
@@ -26,34 +27,16 @@ def run_match_worker():
         offer_id, offer_pid = offer.get("offer_id"), offer.get("product_id")
         print(f"🆕 New offer: {offer_id} (product: {offer_pid})")
 
-        # 0) Inventory guard
-        merchant = offer.get("provided_by")
-        if offer_pid not in list_stocked_products(merchant):
-            print(f"   ⚠️ Skipping {offer_id}: '{offer_pid}' not in {merchant}'s stock")
-            continue
-
-        # fetch all active needs
-        needs = list_objects("need")
+        # fetch all active needs (using agent helper)
+        needs = get_current_needs()
         for need in needs:
             user_id, need_id = need["user_id"], need["need_id"]
             need_pid = need.get("product_id")
 
-            # 1) Product-based filter
-            if need_pid and offer_pid and need_pid != offer_pid:
-                print(f"   ↳ Skipping need {need_id}: product mismatch {need_pid} ≠ {offer_pid}")
-                continue
-
-            # 2) Tag-based guard (only if both define tags)
-            need_tags  = set(need.get("preferences", {}).get("tags", []))
-            offer_tags = set(offer.get("tags", []))
-            if need_tags and offer_tags and not (need_tags & offer_tags):
-                print(f"   ↳ Skipping {need_id}: tags {need_tags} ∩ {offer_tags} → ∅")
-                continue
-
             # 3) Score
             match = process_match(user_id, offer_id)
             score = match.get("score", 0)
-            if score <= 0:
+            if score <= 0:                
                 continue
             print(f"   ↳ Score for {user_id}/{need_id}: {score}")
 
@@ -90,7 +73,7 @@ def run_match_worker():
             r.rpush(f"match_traces:{user_id}", json.dumps(trace))
             r.publish("match_traces_stream", json.dumps(trace))
 
-        time.sleep(0.1)
+        time.sleep(5)
 
 if __name__ == "__main__":
     run_match_worker()

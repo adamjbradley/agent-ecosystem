@@ -2,7 +2,6 @@ import os
 import redis
 import json
 from datetime import datetime
-from agents.needs_agent import process_user_preferences
 
 # Redis setup (same env vars you already use)
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")

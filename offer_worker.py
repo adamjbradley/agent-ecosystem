@@ -13,8 +13,8 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
 
 # ----- Configurable Parameters -----
-offer_interval    = 2  # seconds between new waves of offers
-DEFAULT_OFFER_TTL = 5  # seconds before each offer auto-expires
+offer_interval    = 60  # seconds between new waves of offers
+DEFAULT_OFFER_TTL = 3600  # seconds before each offer auto-expires
 
 # List of merchant/provider IDs to generate offers for
 MERCHANT_IDS = ["merchant_1", "merchant_2", "merchant_3"]

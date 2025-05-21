@@ -2,7 +2,7 @@ import os
 import time
 import random
 
-from agents.users_agent import create_user, list_users, process_user_preferences
+from agents.users_agent import create_user, list_users
 
 # Interval and batch size
 USER_INTERVAL = 30  # seconds between batches
@@ -23,12 +23,6 @@ def run_user_worker():
                     attrs = {"segment": random.choice(["A", "B", "C"])}
                     user = create_user(uid, attrs)
                     print(f"   🆕 Created user: {user['user_id']}")
-
-                    # Immediately create an initial need for this user
-                    tags = random.sample(["eco-friendly", "quiet", "budget", "fast-delivery"], 2)
-                    max_price = random.choice([200, 300, 400])
-                    need = process_user_preferences(uid, {"tags": tags, "price_max": max_price})
-                    print(f"      ➡ Created need {need['need_id']} for user {uid}")
 
         time.sleep(USER_INTERVAL)
 

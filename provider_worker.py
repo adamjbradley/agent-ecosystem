@@ -19,11 +19,11 @@ r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
 
 # Configuration
 CANDIDATE_PROVIDERS = [f"merchant_{i}" for i in range(1, 6)]
-REGISTER_INTERVAL   = 10   # seconds between registering a new provider
-UNREGISTER_INTERVAL = 30   # seconds between removing one
-OFFER_INTERVAL      = 5    # seconds between offers per active provider
-OFFER_TTL           = 10   # seconds TTL for each offer
-OFFER_INTERVAL = 1  # seconds between staging new offers
+REGISTER_INTERVAL   = 300   # seconds between registering a new provider
+UNREGISTER_INTERVAL = 3600   # seconds between removing one
+OFFER_INTERVAL      = 60    # seconds between offers per active provider
+OFFER_TTL           = 120   # seconds TTL for each offer
+OFFER_INTERVAL = 60  # seconds between staging new offers
 
 # After your existing imports and constants
 MIN_OFFER_DELAY = 0.5   # half‐second minimum
