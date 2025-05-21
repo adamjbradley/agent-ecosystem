@@ -14,7 +14,7 @@ REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
 
-def run_match_worker(poll_interval: float = 1.0):
+def run_match_worker(poll_interval: float = 5.0):
     """
     Polls all active needs and offers continuously:
       1) Fetch all needs and offers
@@ -55,8 +55,13 @@ def run_match_worker(poll_interval: float = 1.0):
                 if status == "accepted":
                     if remove_need(need_id):
                         need_removed = True
+                        print(f"▶️ Offer approved, need removed {need_id} for {user_id}")
                         r.incr("metrics:needs_met")
-                        print(f"▶️ Offer approve, need removed {need_id} for {user_id}")
+                else:
+                    if remove_need(need_id):
+                        need_removed = True
+                        print(f"▶️ Final offer rejected need removed {need_id} for {user_id}")
+                        r.incr("metrics:needs_not_met")
 
                 # 5) Trace
                 trace = {
@@ -70,6 +75,7 @@ def run_match_worker(poll_interval: float = 1.0):
                 }
                 r.rpush(f"match_traces:{user_id}", json.dumps(trace))
                 r.publish("match_traces_stream", json.dumps(trace))
+                
         time.sleep(poll_interval)
 
 if __name__ == "__main__":

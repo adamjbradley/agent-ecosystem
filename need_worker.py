@@ -11,7 +11,6 @@ from agents.users_agent import list_users
 from agents.supplier_agent import get_current_products, list_suppliers
 from agents.opportunity_agent import get_current_offers, list_providers, list_stocked_products
 
-
 # ───────────────────────────────────────────────────────────────────────────────
 # Redis connection via environment variables
 # ───────────────────────────────────────────────────────────────────────────────
@@ -23,8 +22,8 @@ r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
 # Configuration
 # ───────────────────────────────────────────────────────────────────────────────
 ## USER_IDS         = ["user_001", "user_002", "user_003"]
-NEED_INTERVAL    = 360    # seconds between generating new needs
-DEFAULT_NEED_TTL = 120    # seconds before each need auto-expires
+NEED_INTERVAL    = 120    # seconds between generating new needs
+DEFAULT_NEED_TTL = 60    # seconds before each need auto-expires
 UNSAT_THRESHOLD = DEFAULT_NEED_TTL  # seconds before flagging unsatisfied
 
 last_need_time = time.time()

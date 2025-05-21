@@ -93,6 +93,7 @@ user_id = st.sidebar.text_input("User ID", "user_001", key="user_id_input")
 
 st.sidebar.metric("Needs requested", r.get("metrics:needs_requested") or 0)
 st.sidebar.metric("Needs satisfied", r.get("metrics:needs_met") or 0)
+st.sidebar.metric("Needs unsatisfied", r.get("metrics:needs_not_met") or 0)
 
  #-- Submit Random Need
 if st.sidebar.button("Submit Random Need", key="btn_submit_need"):

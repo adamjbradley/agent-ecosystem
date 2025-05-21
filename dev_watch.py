@@ -37,7 +37,7 @@ class RebuildHandler(FileSystemEventHandler):
             return
         self._last = now
         print(f"[dev_watch] Detected real change in {event.src_path}. Rebuilding...")
-        subprocess.run(["docker-compose", "down"], check=True)
+        subprocess.run(["docker-compose", "down", "--timeout=10"], check=True)
         subprocess.run(["docker-compose", "up", "--build", "-d"], check=True)
         print("[dev_watch] Services restarted.")
 
@@ -50,6 +50,22 @@ class RebuildHandler(FileSystemEventHandler):
             return None
 
 if __name__ == "__main__":
+
+    # ─── Startup: ensure services are running ───────────────────────
+    try:
+        # List running container IDs
+        result = subprocess.run(
+            ["docker-compose", "ps", "-q"],
+            capture_output=True, text=True, check=True
+        )
+        running = [line for line in result.stdout.splitlines() if line.strip()]
+        if not running:
+            print("[dev_watch] No running services detected; starting docker-compose...")
+            subprocess.run(["docker-compose", "up", "-d", "--build"], check=True)
+            print("[dev_watch] Services started.")
+    except subprocess.CalledProcessError as e:
+        print(f"[dev_watch] Error checking services: {e}")
+
     observer = Observer()
     handler  = RebuildHandler()
     for path in WATCHED_DIRS:
