@@ -20,10 +20,14 @@ def process_match(user_id, offer_id):
         print(f"▶️ No active need for user {user_id}")
         return {"score": 0.0}
 
+    print(f"▶️ Found active need(s) for user {user_id}")
+
     offer = get_offer(offer_id)
     if not offer:
         print(f"▶️ Offer does not exist {offer_id}")
         return {"score": 0.0}
+
+    print(f"▶️ Found related offer {offer_id}")
 
     # 1) Must be same product **name**
     need_name  = need.get("product_name")

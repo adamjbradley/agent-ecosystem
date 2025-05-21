@@ -6,9 +6,10 @@ import random
 from agents.supplier_agent import get_current_products
 
 # Streams and sets for tracking need status
-SATISFIED_SET      = "needs:satisfied"
-UNSATISFIED_SET    = "needs:unsatisfied"
+SATISFIED_SET      = "metrics:satisfied"
+UNSATISFIED_SET    = "metrics:unsatisfied"
 UNSATISFIED_STREAM = "needs_unsatisfied_stream"
+
 # Redis set for tracking registered users
 USERS_SET          = "users:all"
 

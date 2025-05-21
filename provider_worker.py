@@ -26,8 +26,8 @@ OFFER_TTL           = 120   # seconds TTL for each offer
 OFFER_INTERVAL = 60  # seconds between staging new offers
 
 # After your existing imports and constants
-MIN_OFFER_DELAY = 0.5   # half‐second minimum
-MAX_OFFER_DELAY = 3.0   # three‐second maximum
+MIN_OFFER_DELAY = 60   # half‐second minimum
+MAX_OFFER_DELAY = 300   # three‐second maximum
 
 last_register   = time.time()
 last_unregister = time.time()
@@ -63,6 +63,7 @@ def run_provider_worker():
                 print(f"  • Unregistered provider {pid} and removed its offers")
             last_unregister = now
 
+        # AJB
         # 3) For each currently registered provider, generate an offer
         providers = list_providers()
         for provider_id in providers:

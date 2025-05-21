@@ -23,8 +23,8 @@ r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
 # Configuration
 # ───────────────────────────────────────────────────────────────────────────────
 ## USER_IDS         = ["user_001", "user_002", "user_003"]
-NEED_INTERVAL    = 10    # seconds between generating new needs
-DEFAULT_NEED_TTL = 3600    # seconds before each need auto-expires
+NEED_INTERVAL    = 360    # seconds between generating new needs
+DEFAULT_NEED_TTL = 120    # seconds before each need auto-expires
 UNSAT_THRESHOLD = DEFAULT_NEED_TTL  # seconds before flagging unsatisfied
 
 last_need_time = time.time()
@@ -72,7 +72,7 @@ def run_need_worker():
                                     ["eco-friendly", "quiet", "budget", "fast-delivery"],
                                     k=2
                                 ),
-                                "price_max": random.choice([300, 400, 500, 600])
+                                "price_max": random.choice([300, 400, 500, 600, 1000])
                             }
                             need = process_user_preferences(user_id, prefs, ttl=DEFAULT_NEED_TTL)
                             print(f"  • Generated need {need['need_id']} for {user_id}")
@@ -84,7 +84,7 @@ def run_need_worker():
                     print(f"  • Checked for unsatisfied needs older than {UNSAT_THRESHOLD}s")
 
         # Small sleep to avoid busy-looping
-        time.sleep(0.2)
+        time.sleep(1)
 
 if __name__ == "__main__":
     run_need_worker()
